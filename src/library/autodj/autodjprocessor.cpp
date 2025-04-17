@@ -320,6 +320,9 @@ void AutoDJProcessor::fadeNow() {
             }
             fadeTime = math_min(spinboxTime, timeUntilOutroEnd);
         }
+    } else if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
+        // TODO: calculate fadeTime for CortinaTransitionMode
+        fadeTime = spinboxTime;
     } else {
         fadeTime = spinboxTime;
     }
@@ -1493,6 +1496,8 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
                 getLastSoundSecond(pFromDeck),
                 toDeckStartSecond);
     } break;
+    case TransitionMode::CortinaTransitionMode:
+        // TODO: implement CortinaTransitionMode
     case TransitionMode::FixedFullTrack:
     default: {
         double startPoint;
