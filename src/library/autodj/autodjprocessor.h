@@ -160,6 +160,7 @@ class AutoDJProcessor : public QObject {
     };
 
     enum class TransitionMode {
+        CortinaTransitionMode,
         FullIntroOutro,
         FadeAtOutroStart,
         FixedFullTrack,
