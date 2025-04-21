@@ -20,7 +20,7 @@ constexpr double kKeepPosition = -1.0;
 // A track needs to be longer than two callbacks to not stop AutoDJ
 constexpr double kMinimumTrackDurationSec = 0.2;
 
-constexpr bool sDebug = false;
+constexpr bool sDebug = true;
 } // anonymous namespace
 
 DeckAttributes::DeckAttributes(int index,
@@ -567,6 +567,7 @@ AutoDJProcessor::AutoDJError AutoDJProcessor::toggleAutoDJ(bool enable) {
             // loaded track from the queue and wait for the next call to
             // playerPositionChanged for deck1 after the track is loaded.
             m_eState = ADJ_ENABLE_P1LOADED;
+            qDebug() << "AutoDJProcessor:" << "m_eState(ADJ_ENABLE_P1LOADED)";
 
             // Move crossfader to the left.
             setCrossfader(-1.0);
@@ -579,6 +580,7 @@ AutoDJProcessor::AutoDJError AutoDJProcessor::toggleAutoDJ(bool enable) {
             // One of the two decks is playing. Switch into IDLE mode and wait
             // until the playing deck crosses posThreshold to start fading.
             m_eState = ADJ_IDLE;
+            qDebug() << "AutoDJProcessor:" << "m_eState(ADJ_IDLE)";
             if (leftDeckPlaying) {
                 // Load track into the right deck.
                 emitLoadTrackToPlayer(nextTrack, pRightDeck->group, false);
@@ -686,7 +688,7 @@ void AutoDJProcessor::crossfaderChanged(double value) {
 
 void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                                             double thisPlayPosition) {
-    // qDebug() << "player" << pAttributes->group << "PositionChanged(" << value << ")";
+    // qDebug() << pAttributes->group << "playerPositionChanged(" << thisPlayPosition << ")";
     if (m_eState == ADJ_DISABLED) {
         // nothing to do
         return;
@@ -732,6 +734,7 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             // sure our thresholds are configured (by calling calculateFadeThresholds
             // for the playing deck).
             m_eState = ADJ_IDLE;
+            qDebug() << "AutoDJProcessor:" << "m_eState(ADJ_IDLE)";
 
             if (!rightDeckPlaying) {
                 // Only left deck playing!
@@ -791,6 +794,55 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
         }
     }
 
+    if (m_eState == ADJ_LEFT_INTRO_FADE_IN || m_eState == ADJ_RIGHT_INTRO_FADE_IN) {
+        // ignore updates from the non-fading deck updates during INTRO_FADE_IN
+        if (m_eState == ADJ_LEFT_INTRO_FADE_IN && thisDeck->isRight()) {
+            qDebug() << thisDeck->group << "not relevant in ADJ_LEFT_INTRO_FADE_IN";
+            return;
+        }
+        if (m_eState == ADJ_RIGHT_INTRO_FADE_IN && thisDeck->isLeft()) {
+            qDebug() << thisDeck->group << "not relevant in ADJ_RIGHT_INTRO_FADE_IN";
+            return;
+        }
+
+        if (!otherDeckPlaying && otherDeck->isFromDeck) {
+            // TODO: (TDJ_Nick) check if fadeBeginPos and fadeEndPos are correct when leaving INTRO_FADE_IN state
+            qDebug() << this << "loading next track";
+            thisDeck->fadeBeginPos = 1.0;
+            thisDeck->fadeEndPos = 1.0;
+            otherDeck->isFromDeck = false;
+            // Load the next track to otherDeck.
+            loadNextTrackFromQueue(*otherDeck);
+            return;
+        }
+
+        const double dIntroStartPos = getIntroStartSecond(thisDeck) / getEndSecond(thisDeck);
+        const double dIntroEndPos = getIntroEndSecond(thisDeck) / getEndSecond(thisDeck);
+
+        if (dIntroStartPos < dIntroEndPos && thisPlayPosition < dIntroEndPos) {
+            // use intro duration of the intro for fade transition
+            const double dIntroProgress = (thisPlayPosition - dIntroStartPos) / (dIntroEndPos - dIntroStartPos);
+            // qDebug() << "IntroProgress" << dIntroProgress;
+            if (dIntroProgress < 1.0 && dIntroProgress > 0.0) {
+                //TODO: (TDJ_Nick) Adjust the crossfacer
+                if (m_eState == ADJ_LEFT_INTRO_FADE_IN) {
+                    setCrossfader(1.0-dIntroProgress);
+                } else {
+                    setCrossfader(dIntroProgress-1.0);
+                }
+            }
+        } else {
+            // Jump out of INTRO_FADE_IN mode becaus intro length is zero or
+            // current position is past the intro end mark
+            // move crossfade all the way to the current deck
+            setCrossfader(thisDeck->isRight() ? 1.0 : -1.0);
+            thisDeck->isFromDeck = true;
+            m_eState = ADJ_IDLE;
+            emitAutoDJStateChanged(m_eState);
+        }
+        return;
+    }
+
     if (m_eState == ADJ_IDLE) {
         if (!thisDeckPlaying && thisPlayPosition < 1) {
             // this is a cueing seek, recalculate the transition, from the
@@ -803,12 +855,35 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             // Don't adjust transition when reaching the end. In this case it is
             // always stopped.
             if constexpr (sDebug) {
-                qDebug() << this << "playerPositionChanged"
+                qDebug() << this << thisDeck->group << "playerPositionChanged"
                          << "cueing seek";
             }
             calculateTransition(otherDeck, thisDeck, false);
         } else if (thisDeck->isRepeat()) {
             // repeat pauses auto DJ
+            return;
+        }
+    }
+
+    // In CortinaTransitionMode we only have to check if the end of the track has been reached
+    if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
+        if (thisPlayPosition >= thisDeck->fadeEndPos && thisDeck->isFromDeck && !otherDeck->loading) {
+            qDebug() << thisDeck->group << "has reached the end";
+            // Set the state as INTRO_FADE_IN
+            m_eState = thisDeck->isLeft() ? ADJ_RIGHT_INTRO_FADE_IN : ADJ_LEFT_INTRO_FADE_IN;
+            m_transitionProgress = 0.0;
+            emitAutoDJStateChanged(m_eState);
+
+            if (!otherDeckPlaying) {
+                otherDeck->play();
+            }
+
+            // Now that we have started the other deck playing, remove the track
+            // that was "on deck" from the top of the queue.
+            // Note: This is a DB call and takes long.
+            removeLoadedTrackFromTopOfQueue(*otherDeck);
+            return;
+        } else {
             return;
         }
     }
@@ -859,7 +934,6 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
         double crossfaderTarget;
         if (m_eState == ADJ_LEFT_FADING) {
             crossfaderTarget = 1.0;
-
         } else if (m_eState == ADJ_RIGHT_FADING) {
             crossfaderTarget = -1.0;
         } else {
@@ -1497,8 +1571,9 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
                 toDeckStartSecond);
     } break;
     case TransitionMode::CortinaTransitionMode:
-        // TODO: implement CortinaTransitionMode
+        [[fallthrough]];
     case TransitionMode::FixedFullTrack:
+        [[fallthrough]];
     default: {
         double startPoint;
         pToDeck->fadeBeginPos = toDeckEndPosition;

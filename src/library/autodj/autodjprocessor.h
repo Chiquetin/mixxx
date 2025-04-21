@@ -145,6 +145,8 @@ class AutoDJProcessor : public QObject {
         ADJ_IDLE = 0,
         ADJ_LEFT_FADING,
         ADJ_RIGHT_FADING,
+        ADJ_LEFT_INTRO_FADE_IN,
+        ADJ_RIGHT_INTRO_FADE_IN,
         ADJ_ENABLE_P1LOADED,
         ADJ_ENABLE_P1PLAYING,
         ADJ_DISABLED
@@ -246,6 +248,7 @@ class AutoDJProcessor : public QObject {
                 play);
     }
     virtual void emitAutoDJStateChanged(AutoDJProcessor::AutoDJState state) {
+        qDebug() << "AutoDJStateChanged(" << state << ")";
         emit autoDJStateChanged(state);
     }
 
