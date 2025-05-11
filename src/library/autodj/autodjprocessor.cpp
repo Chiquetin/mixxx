@@ -257,6 +257,26 @@ void AutoDJProcessor::fadeNow() {
     pFromDeck->isFromDeck = true;
     pToDeck->isFromDeck = false;
 
+    if(m_transitionMode == TransitionMode::CortinaTransitionMode) {
+        qDebug() << pFromDeck->group << "fadeNow() has been requested";
+        // Stop the deck playing currently and hand over control to the new deck
+        pFromDeck->stop();
+        // Set the state as INTRO_FADE_IN
+        m_eState = pFromDeck->isLeft() ? ADJ_RIGHT_INTRO_FADE_IN : ADJ_LEFT_INTRO_FADE_IN;
+        m_transitionProgress = 0.0;
+        emitAutoDJStateChanged(m_eState);
+
+        if (!pToDeck->isPlaying()) {
+            pToDeck->play();
+        }
+
+        // Now that we have started the other deck playing, remove the track
+        // that was "on deck" from the top of the queue.
+        // Note: This is a DB call and takes long.
+        removeLoadedTrackFromTopOfQueue(*pToDeck);
+        return;
+    }
+
     const double fromDeckEndSecond = getEndSecond(pFromDeck);
     const double toDeckEndSecond = getEndSecond(pToDeck);
     // Since the end position is measured in seconds from 0:00 it is also
