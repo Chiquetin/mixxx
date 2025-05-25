@@ -43,6 +43,7 @@ DeckAttributes::DeckAttributes(int index,
           m_trackSamples(group, "track_samples"),
           m_sampleRate(group, "track_samplerate"),
           m_rateRatio(group, "rate_ratio"),
+          m_channelFader(group, "volume"),
           m_pPlayer(pPlayer) {
     connect(m_pPlayer, &BaseTrackPlayer::newTrackLoaded,
             this, &DeckAttributes::slotTrackLoaded);
@@ -850,9 +851,10 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                 } else {
                     setCrossfader(dIntroProgress-1.0);
                 }
+                thisDeck->setChannelFader(dIntroProgress);
             }
         } else {
-            // Jump out of INTRO_FADE_IN mode becaus intro length is zero or
+            // Jump out of INTRO_FADE_IN mode because intro length is zero or
             // current position is past the intro end mark
             // move crossfade all the way to the current deck
             setCrossfader(thisDeck->isRight() ? 1.0 : -1.0);

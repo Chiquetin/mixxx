@@ -60,6 +60,14 @@ class DeckAttributes : public QObject {
         m_repeat.set(enabled ? 1.0 : 0.0);
     }
 
+    double getChannelFader() const {
+        return m_channelFader.get();
+    }
+
+    void setChannelFader(double value) {
+        m_channelFader.set(value);
+    }
+
     mixxx::audio::FramePos introStartPosition() const {
         return mixxx::audio::FramePos::fromEngineSamplePosMaybeInvalid(m_introStartPos.get());
     }
@@ -135,6 +143,7 @@ class DeckAttributes : public QObject {
     ControlProxy m_trackSamples;
     ControlProxy m_sampleRate;
     ControlProxy m_rateRatio;
+    ControlProxy m_channelFader;
     BaseTrackPlayer* m_pPlayer;
 };
 
