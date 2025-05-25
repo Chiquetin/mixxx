@@ -1,0 +1,48 @@
+This is a file to discuss the options, observations and considerations around
+the implementation of a transition mode for social dance transitions.
+
+Idea (without additional parameters):
+=====================================
+In Social Dance mode use transition time as follows:
+TT > 0: Tracks are being played without gap but transition time is used to
+  fade-in to the tracks (moving the channel fader from 0 to 100% and vice
+  versa). This behaviour can be overridden by setting intro and outro cues
+  for a track.
+TT =< 0: Absolute value is used to create a gap between tracks
+
+In all cases the position of the intro-start cue will be used as start. In case there is an intro-end cue
+the time between start and intro-end cue will be used to move the channel fader from 0 to 100%. Similar logic
+is applied for the outro-start and outro-end cues.
+
+Idea (with additional parameter):
+=====================================
+Parameter: default-fade-in-time
+Parameter: default-fade-out-time
+Parameter: max-track-play-time
+TT > 0: does not make sense in social dance mode (proposal: ignore and set to zero)
+TT =< 0: Absolute value is used to create a gap between tracks
+
+default-fade-in time will be used to move channel fader from 0 to 100% when track starts playing. The position
+of the intro-start cue will be used as a start. When the intro-end cue is set the time between start and intro-end
+cue will be used moving the channel fader from 0 to 100%.
+
+Use of intro and outro cues:
+============================
+Use intro-start cue as starting position: yes
+Use outro-end cue position as end position: yes
+Use intro-end cue: yes, overrides default transition times
+Use outro-start cue: yes, overrides default-fade-out-time
+
+Question:
+=========
+Are new cues required instead of the existing ones?
+How to treat "fade now"? If default-fade-out-time is set use the value for fading-out and start the new track.
+Warnings about wrong version of ID3-tags (version 2.2 only partially supported)
+
+Mixxx Feature Proposal
+======================
+AutoDJ: Fade in next track without crossfading
+In social dance settings like Argentine Tango it is desirable to have a moment
+of silence between tracks and eventually have the tracks fading in. In mixxx
+discourse [AutoDJ - Fade in next track without crossfading](https://mixxx.discourse.group/t/autodj-fade-in-next-track-without-crossfading/31213)
+a couple of options have been discussed.
