@@ -94,13 +94,10 @@ void CortinaModeProcessor::updateTrackMarkers(DeckAttributes* pDeck) {
     double m_trackOutroStartRel = 1.0 - kTrackFadeOutTime / trackDuration;
     double m_trackOutroEndRel = 1.0;
 
+    // modify track markers when intro markers have been set
     // The advantage of using the FramePos values here is that the validity can be checked
     const mixxx::audio::FramePos introStartPosition = pDeck->introStartPosition();
     const mixxx::audio::FramePos introEndPosition = pDeck->introEndPosition();
-    const mixxx::audio::FramePos outroStartPosition = pDeck->outroStartPosition();
-    const mixxx::audio::FramePos outroEndPosition = pDeck->outroEndPosition();
-
-    // modify track markers when intro markers have been set
     if (introStartPosition.isValid()) {
         m_trackIntroStartRel = introStartPosition / trackEndPosition;
     }
@@ -116,7 +113,11 @@ void CortinaModeProcessor::updateTrackMarkers(DeckAttributes* pDeck) {
             }
         }
     }
+
     // modify track marker when outro markers have been set
+    // The advantage of using the FramePos values here is that the validity can be checked
+    const mixxx::audio::FramePos outroStartPosition = pDeck->outroStartPosition();
+    const mixxx::audio::FramePos outroEndPosition = pDeck->outroEndPosition();
     if (outroStartPosition.isValid()) {
         m_trackOutroStartRel = outroStartPosition / trackEndPosition;
     }
