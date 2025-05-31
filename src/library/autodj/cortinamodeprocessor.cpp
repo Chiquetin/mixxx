@@ -6,7 +6,7 @@ class TransitionManager : public QObject {
     m_pCOCrossfader;
 }
 
-Class SocialDanceTM : TransitionManager {
+Class CortinaModeProcessor : TransitionManager {
     m_xFadeTransitionProgress; // is used to measure transition progress
     m_xFadeTransitionStart;    // play position at which fromDeck starts x-fading
 }
