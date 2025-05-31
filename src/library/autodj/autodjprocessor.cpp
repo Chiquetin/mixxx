@@ -818,7 +818,7 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
     if (m_eState == ADJ_LEFT_INTRO_FADE_IN || m_eState == ADJ_RIGHT_INTRO_FADE_IN) {
         // ignore updates from the non-fading deck updates during INTRO_FADE_IN
         if ((m_eState == ADJ_LEFT_INTRO_FADE_IN && thisDeck->isRight()) ||
-                (m_eState == ADJ_RIGHT_INTRO_FADE_IN && thisDeck->isLeft()) {
+                (m_eState == ADJ_RIGHT_INTRO_FADE_IN && thisDeck->isLeft())) {
             qDebug() << thisDeck->group << "not relevant during fade in";
             return;
         }
