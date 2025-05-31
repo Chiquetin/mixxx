@@ -12,8 +12,8 @@ class TransitionManager : public QObject {
     void calculateTransition();
 
     // Helper functions
-    double TransitionManager::getFirstSoundSecond(DeckAttributes* pDeck);
-    double TransitionManager::getIntroStartSecond(DeckAttributes* pDeck);
+    double getFirstSoundSecond(DeckAttributes* pDeck);
+    double getIntroStartSecond(DeckAttributes* pDeck);
 
     m_channelFader;
     m_pCOCrossfader;
@@ -23,8 +23,8 @@ class CortinaModeProcessor : TransitionManager {
     m_xFadeTransitionProgress; // is used to measure transition progress
     m_xFadeTransitionStart;    // play position at which fromDeck starts x-fading
 
-    updateTransitionMarkers(DeckAttributes* pFromDeck, DeckAttributes* pToDeck);
-    updateTrackMarkers(DeckAttributes* pDeck);
+    void updateTransitionMarkers(DeckAttributes* pFromDeck, DeckAttributes* pToDeck);
+    void updateTrackMarkers(DeckAttributes* pDeck);
 }
 
 double
@@ -73,16 +73,15 @@ double TransitionManager::getIntroStartSecond(DeckAttributes* pDeck) {
 /*
  * updateTransitionMarkers updates all markers used to manage the transition
  */
-
-CortinaModeProcessor::updateTransitionMarkers() {
+void CortinaModeProcessor::updateTransitionMarkers(
+        DeckAttributes* pFromDeck, DeckAttributes* pToDeck) {
 }
 
 /*
  * updateTrackMarkers updates the markers used to control the cross fader and
  * channel volume faders during fade-in / fade-out / fade-over
  */
-
-CortinaModeProcessor::updateTrackMarkers(DeckAttributes* pDeck) {
+void CortinaModeProcessor::updateTrackMarkers(DeckAttributes* pDeck) {
     // calculates the effective start and end of the intro and outro
     // based on the rules for the transition
 
