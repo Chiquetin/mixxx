@@ -1,17 +1,35 @@
+/*
+The AutoDJ Processor has two main functions
+  * Managing the playlist used to supply tracks for the AutoDJ
+  * Managing the transitions between tracks when AutoDJ is active
+*/
+
+/*
+ * Transition manager is the base class for any mode of the AutoDJ
+ * it provides the interface to the AutoDJProcessor
+ */
 class TransitionManager : public QObject {
-    calculateTransition() {
-    }
+    void calculateTransition();
+
+    // Helper functions
+    double TransitionManager::getFirstSoundSecond(DeckAttributes* pDeck);
+    double TransitionManager::getIntroStartSecond(DeckAttributes* pDeck);
 
     m_channelFader;
     m_pCOCrossfader;
 }
 
-Class CortinaModeProcessor : TransitionManager {
+class CortinaModeProcessor : TransitionManager {
     m_xFadeTransitionProgress; // is used to measure transition progress
     m_xFadeTransitionStart;    // play position at which fromDeck starts x-fading
+
+    updateTransitionMarkers(DeckAttributes* pFromDeck, DeckAttributes* pToDeck);
+    updateTrackMarkers(DeckAttributes* pDeck);
 }
 
-double TransitionManager::getFirstSoundSecond(DeckAttributes* pDeck) {
+double
+TransitionManager::getFirstSoundSecond(
+        DeckAttributes* pDeck) {
     TrackPointer pTrack = pDeck->getLoadedTrack();
     if (!pTrack) {
         return 0.0;
@@ -52,48 +70,63 @@ double TransitionManager::getIntroStartSecond(DeckAttributes* pDeck) {
     return framePositionToSeconds(introStartPosition, pDeck);
 }
 
-CortinaModeProcessor::calculateTrackMarkers(DeckAttributes* pDeck) {
+/*
+ * updateTransitionMarkers updates all markers used to manage the transition
+ */
+
+CortinaModeProcessor::updateTransitionMarkers() {
+}
+
+/*
+ * updateTrackMarkers updates the markers used to control the cross fader and
+ * channel volume faders during fade-in / fade-out / fade-over
+ */
+
+CortinaModeProcessor::updateTrackMarkers(DeckAttributes* pDeck) {
     // calculates the effective start and end of the intro and outro
     // based on the rules for the transition
+
+    const mixxx::audio::FramePos trackEndPosition = pDeck->trackEndPosition();
+    const trackDuration = framePositionToSeconds(trackEndPosition, pDeck);
+
+    // assign default behaviour for fade-in / fade-out
+    double m_trackIntroStartRel = 0.0;
+    double m_trackIntroEndRel = kTrackFadeInTime / trackDuration;
+    double m_trackOutroStartRel = kTrackFadeOutTime / trackDuration;
+    double m_trackOutroEndRel = 1.0;
 
     // The advantage of using the FramePos values here is that the validity can be checked
     const mixxx::audio::FramePos introStartPosition = pDeck->introStartPosition();
     const mixxx::audio::FramePos introEndPosition = pDeck->introEndPosition();
     const mixxx::audio::FramePos outroStartPosition = pDeck->outroStartPosition();
     const mixxx::audio::FramePos outroEndPosition = pDeck->outroEndPosition();
-    const mixxx::audio::FramePos trackEndPosition = pDeck->trackEndPosition();
 
-    const trackDuration = framePositionToSeconds(trackEndPosition);
-
-    double m_trackIntroStartRel = 0.0;
-    double m_trackIntroEndRel = kTransitionFadeTime / trackDuration;
-    double m_trackOutroStartRel = 0.0;
-    double m_trackOutroEndRel = 1.0;
-
+    // modify track markers when intro markers have been set
     if (introStartPosition.isValid()) {
         m_trackIntroStartRel = introStartPosition / trackEndPosition;
     }
     if (introEndPosition.isValid()) {
         m_trackIntroEndRel = introEndPosition / trackEndPosition;
         if (!introStartPosition.isValid()) {
-            qWarning() << "Intro end marker is used without intro start marker";
+            qWarning() << "No intro-start cue set: fade out to end of track";
             // check if fading should start at 0.0 or later
-            if (framePositionToSeconds(introEndPosition) > kTransitionFadeTime) {
+            const double introEndSecond = framePositionToSeconds(introEndPosition, pDeck);
+            if (introEndSecond > kTransitionFadeTime) {
                 m_trackIntroStartRel =
                         m_trackIntroEndRel - kTransitionFadeTime / trackDuration;
             }
         }
     }
+    // modify track marker when outro markers have been set
+    if (outroStartPosition.isValid()) {
+        m_trackOutroStartRel = outroStartPosition / trackEndPosition;
+    }
     if (outroEndPosition.isValid()) {
         m_trackOutroEndRel = outroEndPosition / trackEndPosition;
+    } else if (outroStartPosition.isValid()) {
+        qWarning() << "No outro-end cue set: fade out to end of track";
     }
-    if (outroStartPosition.isValid()) {
-        m_trackOutroEndRel = outroEndPosition / trackEndPosition;
-    }
+}
 
-    const double trackDuration = getEndSecond(pDeck);
-    const double introStartSecond = getIntroStartSecond(pDeck);
-    const double introEndSecond = getIntroEndSecond(pDeck);
-    const double outroStartSecond = getOutroStartSecond(pDeck);
-    const double outroEndSecond = getOutroEndSecond(pDeck);
+class PlaylistManager : public QObject {
 }
