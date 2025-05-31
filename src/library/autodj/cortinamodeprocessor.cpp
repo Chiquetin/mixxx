@@ -1,4 +1,4 @@
-Class TransitionManager {
+class TransitionManager : public QObject {
     calculateTransition() {
     }
 
