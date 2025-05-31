@@ -91,7 +91,7 @@ void CortinaModeProcessor::updateTrackMarkers(DeckAttributes* pDeck) {
     // assign default behaviour for fade-in / fade-out
     double m_trackIntroStartRel = 0.0;
     double m_trackIntroEndRel = kTrackFadeInTime / trackDuration;
-    double m_trackOutroStartRel = kTrackFadeOutTime / trackDuration;
+    double m_trackOutroStartRel = 1.0 - kTrackFadeOutTime / trackDuration;
     double m_trackOutroEndRel = 1.0;
 
     // The advantage of using the FramePos values here is that the validity can be checked
