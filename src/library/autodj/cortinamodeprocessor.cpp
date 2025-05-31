@@ -1,8 +1,57 @@
 /*
-The AutoDJ Processor has two main functions
-  * Managing the playlist used to supply tracks for the AutoDJ
-  * Managing the transitions between tracks when AutoDJ is active
-*/
+ * The AutoDJ Processor has two main functions
+ * - Managing the playlist used to supply tracks for the AutoDJ
+ * - Managing the transitions between tracks when AutoDJ is active
+ */
+
+#include <QScopedPointer>
+
+class TransitionManager;
+class IdleModeProcessor;
+class CortinaModeProcessor;
+class FullOutroIntroProcessor;
+
+class TransitionManagerContext : public QObject {
+    enum TransitionMode {
+        ADJ_DISABLED,
+        ADJ_FULL_INTRO_OUTRO_FADE,
+        ADJ_CORTINA_MODE
+    };
+
+    enum AutoDJState {
+        ADJ_LEFT_DECK_FADE_IN,
+        ADJ_LEFT_DECK_PLAYING,
+        ADJ_LEFT_DECK_FADE_OUT,
+        ADJ_LEFT_DECK_XFADING,
+        ADJ_RIGHT_DECK_FADE_IN,
+        ADJ_RIGHT_DECK_PLAYING,
+        ADJ_RIGHT_DECK_FADE_OUT,
+        ADJ_RIGHT_DECK_XFADING
+    };
+
+  private:
+    QScopedPointer<TransitionManager> m_pTransitionManager;
+    int currentTransitionMode;
+
+    // Manage state transitions
+    QScopedPointer<TransitionManager> changeState(
+            TransitionMode newTransitionMode) {
+        switch (currentStateIndex) {
+        case TransitionMode::ADJ_IDLE:
+            return QScopedPointer<IdleModeProcessor>.create();
+        case TransitionMode::ADJ_CORTINA_MODE:
+            return QScopedPointer<CortinaModeProcessor>.create();
+        case TransitionMode::ADJ_FULL_INTRO_OUTRO_FADE:
+            return QScopedPointer<FullOutroIntroProcessor>.create();
+        }
+    }
+
+  public:
+    TransitionManagerContext()
+            : currentTransitionMode(TransitionMode::ADJ_DISABLED) {
+        m_pTransitionManager = QScopedPointer<IdleModeProcessor>.create();
+    }
+}
 
 /*
  * Transition manager is the base class for any mode of the AutoDJ
