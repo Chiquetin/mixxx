@@ -828,6 +828,8 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             qDebug() << this << "loading next track";
             thisDeck->fadeBeginPos = 1.0;
             thisDeck->fadeEndPos = 1.0;
+            // toggle isFromDeck status
+            thisDeck->isFromDeck = true;
             otherDeck->isFromDeck = false;
             // Load the next track to otherDeck.
             loadNextTrackFromQueue(*otherDeck);
@@ -842,20 +844,11 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             const double dIntroProgress = (thisPlayPosition - dIntroStartPos) / (dIntroEndPos - dIntroStartPos);
             // qDebug() << "IntroProgress" << dIntroProgress;
             if (dIntroProgress < 1.0 && dIntroProgress > 0.0) {
-                //TODO: (TDJ_Nick) Adjust the crossfacer
-                if (m_eState == ADJ_LEFT_INTRO_FADE_IN) {
-                    setCrossfader(1.0-dIntroProgress);
-                } else {
-                    setCrossfader(dIntroProgress-1.0);
-                }
                 thisDeck->setChannelFader(dIntroProgress);
             }
         } else {
             // Jump out of INTRO_FADE_IN mode because intro length is zero or
             // current position is past the intro end mark
-            // move crossfade all the way to the current deck
-            setCrossfader(thisDeck->isRight() ? 1.0 : -1.0);
-            thisDeck->isFromDeck = true;
             m_eState = ADJ_IDLE;
             emitAutoDJStateChanged(m_eState);
         }
@@ -890,7 +883,10 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             qDebug() << thisDeck->group << "has reached the end";
             // Set the state as INTRO_FADE_IN
             m_eState = thisDeck->isLeft() ? ADJ_RIGHT_INTRO_FADE_IN : ADJ_LEFT_INTRO_FADE_IN;
-            m_transitionProgress = 0.0;
+            // Move the cross fader to the destination
+            setCrossfader(thisDeck->isLeft() ? 1.0 : -1.0);
+            // and set the transition to completed
+            m_transitionProgress = 1.0;
             emitAutoDJStateChanged(m_eState);
 
             if (!otherDeckPlaying) {
