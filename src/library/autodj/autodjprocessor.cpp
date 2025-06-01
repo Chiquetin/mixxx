@@ -815,6 +815,7 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
         }
     }
 
+    // This is specific to CortinaTransitionMode
     if (m_eState == ADJ_LEFT_INTRO_FADE_IN || m_eState == ADJ_RIGHT_INTRO_FADE_IN) {
         // ignore updates from the non-fading deck updates during INTRO_FADE_IN
         if ((m_eState == ADJ_LEFT_INTRO_FADE_IN && thisDeck->isRight()) ||
@@ -1628,6 +1629,17 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
     }
 }
 
+/*
+ * useFixedFadeTime
+ * applies the logic of fixed FadeTime to the transition markers on each deck
+ *
+ * Input:
+ *   fromDeckSecond:
+ *   fadeEndSecond:
+ *   toDeckStartSecond:
+ * Uses:
+ *   m_transitionTime:
+ */
 void AutoDJProcessor::useFixedFadeTime(
         DeckAttributes* pFromDeck,
         DeckAttributes* pToDeck,
