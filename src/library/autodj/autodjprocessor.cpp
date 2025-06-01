@@ -845,6 +845,8 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             // qDebug() << "IntroProgress" << dIntroProgress;
             if (dIntroProgress < 1.0 && dIntroProgress > 0.0) {
                 thisDeck->setChannelFader(dIntroProgress);
+            } else if (dIntroProgress < 0.0) {
+                thisDeck->setChannelFader(0.0);
             }
         } else {
             // Jump out of INTRO_FADE_IN mode because intro length is zero or
