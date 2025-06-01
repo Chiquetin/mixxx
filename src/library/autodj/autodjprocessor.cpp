@@ -877,8 +877,8 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
         }
     }
 
-    // In CortinaTransitionMode we only have to check if the end of the track has been reached
     if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
+        // In CortinaTransitionMode we only have to check if the end of the track has been reached
         if (thisPlayPosition >= thisDeck->fadeEndPos && thisDeck->isFromDeck && !otherDeck->loading) {
             qDebug() << thisDeck->group << "has reached the end";
             // Set the state as INTRO_FADE_IN
