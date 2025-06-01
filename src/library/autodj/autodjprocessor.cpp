@@ -826,7 +826,7 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
 
         if (!otherDeckPlaying && otherDeck->isFromDeck) {
             // TODO: (TDJ_Nick) check if fadeBeginPos and fadeEndPos are correct when leaving INTRO_FADE_IN state
-            qDebug() << this << "loading next track";
+            qDebug() << this << otherDeck->group << "loading next track";
             thisDeck->fadeBeginPos = 1.0;
             thisDeck->fadeEndPos = 1.0;
             // toggle isFromDeck status
@@ -1358,6 +1358,10 @@ double AutoDJProcessor::framePositionToSeconds(
 void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
         DeckAttributes* pToDeck,
         bool seekToStartPoint) {
+    qDebug() << this << "calculateTransition"
+             << pFromDeck->group << "->" << pToDeck->group
+             << "(seekToStartPoint:" << seekToStartPoint << ")";
+
     VERIFY_OR_DEBUG_ASSERT(pFromDeck && pToDeck) {
         return;
     }
@@ -1624,8 +1628,14 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
 
     if constexpr (sDebug) {
         qDebug() << this << "calculateTransition" << pFromDeck->group
-                 << pFromDeck->fadeBeginPos << pFromDeck->fadeEndPos
-                 << pToDeck->startPos;
+                 << "fadeBeginPos:" << pFromDeck->fadeBeginPos
+                 << "fadeEndPos:" << pFromDeck->fadeEndPos
+                 << "isFromDeck:" << pFromDeck->isFromDeck;
+        qDebug() << this << "calculateTransition" << pToDeck->group
+                 << "startPos:" << pToDeck->startPos
+                 << "fadeBeginPos:" << pToDeck->fadeBeginPos
+                 << "fadeEndPos:" << pToDeck->fadeEndPos
+                 << "isFromDeck:" << pToDeck->isFromDeck;
     }
 }
 
@@ -1646,6 +1656,11 @@ void AutoDJProcessor::useFixedFadeTime(
         double fromDeckSecond,
         double fadeEndSecond,
         double toDeckStartSecond) {
+    qDebug() << this << "useFixedFadeTime"
+             << pFromDeck->group << "->" << pToDeck->group
+             << "fromDeckSecond:" << fromDeckSecond
+             << "fadeEndSecond:" << fadeEndSecond
+             << "toDeckStartSecond:" << toDeckStartSecond;
     if (m_transitionTime > 0.0) {
         // Guard against the next track being too short. This transition must finish
         // before the next transition starts.
