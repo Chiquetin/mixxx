@@ -1435,6 +1435,8 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
     const double introStart = getIntroStartSecond(pToDeck);
     const double introEnd = getIntroEndSecond(pToDeck);
     if (seekToStartPoint || toDeckPositionSeconds >= pToDeck->fadeBeginPos) {
+        // suspect that this causes reset in cortina mode
+        qDebug() << pToDeck->group << "re-cueing";
         // toDeckPosition >= pToDeck->fadeBeginPos happens when the
         // user has seeked or played the to track behind fadeBeginPos of
         // the fade after the next.
@@ -1566,6 +1568,8 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
         m_crossfaderStartCenter = true;
         // fall through intended!
         [[fallthrough]];
+    case TransitionMode::CortinaTransitionMode:
+        [[fallthrough]];
     case TransitionMode::FixedSkipSilence: {
         double toDeckStartSecond;
         pToDeck->fadeBeginPos = getLastSoundSecond(pToDeck);
@@ -1585,8 +1589,6 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
                 getLastSoundSecond(pFromDeck),
                 toDeckStartSecond);
     } break;
-    case TransitionMode::CortinaTransitionMode:
-        [[fallthrough]];
     case TransitionMode::FixedFullTrack:
         [[fallthrough]];
     default: {
