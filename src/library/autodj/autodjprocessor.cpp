@@ -815,6 +815,7 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
         }
     }
 
+    // This is specific to CortinaTransitionMode
     if (m_eState == ADJ_LEFT_INTRO_FADE_IN || m_eState == ADJ_RIGHT_INTRO_FADE_IN) {
         // ignore updates from the non-fading deck updates during INTRO_FADE_IN
         if ((m_eState == ADJ_LEFT_INTRO_FADE_IN && thisDeck->isRight()) ||
@@ -825,7 +826,7 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
 
         if (!otherDeckPlaying && otherDeck->isFromDeck) {
             // TODO: (TDJ_Nick) check if fadeBeginPos and fadeEndPos are correct when leaving INTRO_FADE_IN state
-            qDebug() << this << "loading next track";
+            qDebug() << this << otherDeck->group << "loading next track";
             thisDeck->fadeBeginPos = 1.0;
             thisDeck->fadeEndPos = 1.0;
             // toggle isFromDeck status
@@ -845,6 +846,8 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             // qDebug() << "IntroProgress" << dIntroProgress;
             if (dIntroProgress < 1.0 && dIntroProgress > 0.0) {
                 thisDeck->setChannelFader(dIntroProgress);
+            } else if (dIntroProgress < 0.0) {
+                thisDeck->setChannelFader(0.0);
             }
         } else {
             // Jump out of INTRO_FADE_IN mode because intro length is zero or
@@ -1355,6 +1358,10 @@ double AutoDJProcessor::framePositionToSeconds(
 void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
         DeckAttributes* pToDeck,
         bool seekToStartPoint) {
+    qDebug() << this << "calculateTransition"
+             << pFromDeck->group << "->" << pToDeck->group
+             << "(seekToStartPoint:" << seekToStartPoint << ")";
+
     VERIFY_OR_DEBUG_ASSERT(pFromDeck && pToDeck) {
         return;
     }
@@ -1623,17 +1630,39 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
 
     if constexpr (sDebug) {
         qDebug() << this << "calculateTransition" << pFromDeck->group
-                 << pFromDeck->fadeBeginPos << pFromDeck->fadeEndPos
-                 << pToDeck->startPos;
+                 << "fadeBeginPos:" << pFromDeck->fadeBeginPos
+                 << "fadeEndPos:" << pFromDeck->fadeEndPos
+                 << "isFromDeck:" << pFromDeck->isFromDeck;
+        qDebug() << this << "calculateTransition" << pToDeck->group
+                 << "startPos:" << pToDeck->startPos
+                 << "fadeBeginPos:" << pToDeck->fadeBeginPos
+                 << "fadeEndPos:" << pToDeck->fadeEndPos
+                 << "isFromDeck:" << pToDeck->isFromDeck;
     }
 }
 
+/*
+ * useFixedFadeTime
+ * applies the logic of fixed FadeTime to the transition markers on each deck
+ *
+ * Input:
+ *   fromDeckSecond:
+ *   fadeEndSecond:
+ *   toDeckStartSecond:
+ * Uses:
+ *   m_transitionTime:
+ */
 void AutoDJProcessor::useFixedFadeTime(
         DeckAttributes* pFromDeck,
         DeckAttributes* pToDeck,
         double fromDeckSecond,
         double fadeEndSecond,
         double toDeckStartSecond) {
+    qDebug() << this << "useFixedFadeTime"
+             << pFromDeck->group << "->" << pToDeck->group
+             << "fromDeckSecond:" << fromDeckSecond
+             << "fadeEndSecond:" << fadeEndSecond
+             << "toDeckStartSecond:" << toDeckStartSecond;
     if (m_transitionTime > 0.0) {
         // Guard against the next track being too short. This transition must finish
         // before the next transition starts.
