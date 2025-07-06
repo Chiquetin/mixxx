@@ -62,7 +62,11 @@ class TransitionManager : public QObject {
 
     // Helper functions
     double getFirstSoundSecond(DeckAttributes* pDeck);
+    double getLastSoundSecond(DeckAttributes* pDeck);
     double getIntroStartSecond(DeckAttributes* pDeck);
+    double getIntroEndSecond(DeckAttributes* pDeck);
+    double getOutroStartSecond(DeckAttributes* pDeck);
+    double getOutroEndSecond(DeckAttributes* pDeck);
 
     m_channelFader;
     m_pCOCrossfader;
@@ -120,19 +124,34 @@ double TransitionManager::getIntroStartSecond(DeckAttributes* pDeck) {
 }
 
 /*
- * updateTransitionMarkers updates all markers used to manage the transition
+ * updateTransitionMarkers() updates all markers used to manage the transition
+ * call this function when:
+ *  - track is loaded
+ *  - cue points are being updated
+ *  - deck speed is changed
  */
 void CortinaModeProcessor::updateTransitionMarkers(
         DeckAttributes* pFromDeck, DeckAttributes* pToDeck) {
+    // calculates the start and end of the the crossfade transition markers
+    // when the transition time is set to a value > 0
+
+    const mixxx::audio::FramePos trackEndPosition = pFromDeck->trackEndPosition();
+    const trackDuration = framePositionToSeconds(trackEndPosition, pFromDeck);
+
+    double m_startXfade = 1.0 - kTrackFadeTime / trackDuration;
 }
 
 /*
- * updateTrackMarkers updates the markers used to control the cross fader and
+ * updateTrackMarkers() updates the markers used to control the cross fader and
  * channel volume faders during fade-in / fade-out / fade-over
+ * call this function when:
+ *  - track is loaded
+ *  - cue points are being updated
+ *  - deck speed is changed
  */
 void CortinaModeProcessor::updateTrackMarkers(DeckAttributes* pDeck) {
     // calculates the effective start and end of the intro and outro
-    // based on the rules for the transition
+    // based on the rules for the transition time is < 0
 
     const mixxx::audio::FramePos trackEndPosition = pDeck->trackEndPosition();
     const trackDuration = framePositionToSeconds(trackEndPosition, pDeck);
@@ -167,13 +186,18 @@ void CortinaModeProcessor::updateTrackMarkers(DeckAttributes* pDeck) {
     // The advantage of using the FramePos values here is that the validity can be checked
     const mixxx::audio::FramePos outroStartPosition = pDeck->outroStartPosition();
     const mixxx::audio::FramePos outroEndPosition = pDeck->outroEndPosition();
-    if (outroStartPosition.isValid()) {
-        m_trackOutroStartRel = outroStartPosition / trackEndPosition;
-    }
     if (outroEndPosition.isValid()) {
         m_trackOutroEndRel = outroEndPosition / trackEndPosition;
-    } else if (outroStartPosition.isValid()) {
-        qWarning() << "No outro-end cue set: fade out to end of track";
+    }
+    if (outroStartPosition.isValid()) {
+        m_trackOutroStartRel = outroStartPosition / trackEndPosition;
+        if (!outroEndPosition.isValid()) {
+            qWarning() << "No outro-end cue set: fade out to end of track";
+            const double outroStartSecond = framePositionToSeconds(outroStartPosition, pDeck);
+            if (outroStartSecond > (trackDuration - kTransitionFadeTime)) {
+                m_trackOutroStartRel = m_trackOutroEndRel - kTransitionFadeTime / trackDuration;
+            }
+        }
     }
 }
 

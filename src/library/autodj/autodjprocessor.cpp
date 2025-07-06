@@ -20,6 +20,10 @@ constexpr double kKeepPosition = -1.0;
 // A track needs to be longer than two callbacks to not stop AutoDJ
 constexpr double kMinimumTrackDurationSec = 0.2;
 
+// new parameter for social dance mode
+constexpr double kFadeInDurationDefault = 3.0;  // duration in seconds
+constexpr double kFadeOutDurationDefault = 5.0; // duration in seconds
+
 constexpr bool sDebug = true;
 } // anonymous namespace
 
@@ -343,7 +347,7 @@ void AutoDJProcessor::fadeNow() {
         }
     } else if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
         // TODO: calculate fadeTime for CortinaTransitionMode
-        fadeTime = spinboxTime;
+        fadeTime = m_transitionTime;
     } else {
         fadeTime = spinboxTime;
     }
@@ -1443,7 +1447,7 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
     const double introEnd = getIntroEndSecond(pToDeck);
     if (seekToStartPoint || toDeckPositionSeconds >= pToDeck->fadeBeginPos) {
         // suspect that this causes reset in cortina mode
-        qDebug() << pToDeck->group << "re-cueing";
+        qDebug() << this << pToDeck->group << "re-cueing:" << introStart;
         // toDeckPosition >= pToDeck->fadeBeginPos happens when the
         // user has seeked or played the to track behind fadeBeginPos of
         // the fade after the next.
