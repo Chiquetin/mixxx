@@ -43,6 +43,7 @@ DeckAttributes::DeckAttributes(int index,
           m_trackSamples(group, "track_samples"),
           m_sampleRate(group, "track_samplerate"),
           m_rateRatio(group, "rate_ratio"),
+          m_channelVolume(group, "volume"),
           m_pPlayer(pPlayer) {
     connect(m_pPlayer, &BaseTrackPlayer::newTrackLoaded,
             this, &DeckAttributes::slotTrackLoaded);
@@ -745,6 +746,66 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                 calculateTransition(rightDeck, leftDeck, false);
             }
             emitAutoDJStateChanged(m_eState);
+        }
+        return;
+    }
+
+    if (m_transitionMode == TransitionMode::CortinaMode) {
+        if (not thisDeck->isPlaying()) {
+            return;
+        }
+        const double thisPos = thisPlayPosition;
+        const double duration = getEndSecond(thisDeck);
+        switch (m_eState) {
+        case ADJ_LEFT_SOCIAL_FADING:
+        case ADJ_RIGHT_SOCIAL_FADING: {
+                const double startPos = getIntroStartSecond(thisDeck) / duration;
+                const double endPos = getIntroEndSecond(thisDeck) / duration;
+                if (thisPos < startPos) {
+                    qDebug() << "CortinaMode: waiting to fade-in";
+                    // nothing to do, wait to reach intro start
+                } else if (thisPos < endPos) {
+                    qDebug() << "CortinaMode: fading-in";
+                    thisDeck->setVolume((thisPos-startPos)/(endPos-startPos));
+                } else {
+                    qDebug() << "CortinaMode: fade-in completed";
+                    thisDeck->setVolume(1.0);
+                    m_eState = ADJ_IDLE;
+                    emitAutoDJStateChanged(m_eState);
+                }
+            } break;
+        case ADJ_IDLE: {
+                const double outroEnd = getOutroEndSecond(thisDeck) / duration;
+                const double outroStart = getOutroStartSecond(thisDeck) / duration;
+                if (thisPos < outroStart) {
+                    // qDebug() << "CortinaMode: keep on playing";
+                } else if (thisPos < std::min(outroEnd, 1.0)) {
+                    qDebug() << "CortinaMode: fading-out";
+                    const double fadeOutProgress = (thisPos - outroStart) / (outroEnd - outroStart);
+                    thisDeck->setVolume(1.0-fadeOutProgress);
+                } else {
+                    qDebug() << "CortinaMode: Transition now";
+                    thisDeck->stop();
+                    const double noIntro =
+                        getIntroStartSecond(otherDeck) == getIntroEndSecond(otherDeck);
+                    otherDeck->setVolume(noIntro?1.0:0.0);
+                    setCrossfader(thisDeck->isRight()?-1.0:1.0);
+                    otherDeck->isFromDeck = false;
+                    otherDeck->play();
+                    removeLoadedTrackFromTopOfQueue(*otherDeck);
+                    // Load the next track to otherDeck.
+                    loadNextTrackFromQueue(*thisDeck);
+                    if (thisDeck->isRight()) {
+                        m_eState = ADJ_LEFT_SOCIAL_FADING;
+                    } else {
+                        m_eState = ADJ_RIGHT_SOCIAL_FADING;
+                    }
+                    emitAutoDJStateChanged(m_eState);
+                }
+            } break;
+        default: {
+                // TODO: this should not occur
+            }
         }
         return;
     }

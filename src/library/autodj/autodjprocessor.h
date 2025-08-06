@@ -52,6 +52,14 @@ class DeckAttributes : public QObject {
         m_playPos.set(playpos);
     }
 
+    double getVolume() const {
+        return m_channelVolume.get();
+    }
+
+    void setVolume(double volume) {
+        m_channelVolume.set(volume);
+    }
+
     bool isRepeat() const {
         return m_repeat.toBool();
     }
@@ -135,6 +143,7 @@ class DeckAttributes : public QObject {
     ControlProxy m_trackSamples;
     ControlProxy m_sampleRate;
     ControlProxy m_rateRatio;
+    ControlProxy m_channelVolume;
     BaseTrackPlayer* m_pPlayer;
 };
 
