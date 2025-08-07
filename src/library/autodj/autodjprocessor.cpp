@@ -257,6 +257,29 @@ void AutoDJProcessor::fadeNow() {
     pFromDeck->isFromDeck = true;
     pToDeck->isFromDeck = false;
 
+    if (m_transitionMode == TransitionMode::CortinaMode) {
+        qDebug() << "CortinaMode: fadeNow()";
+        DeckAttributes* const thisDeck = pFromDeck;
+        DeckAttributes* const otherDeck = pToDeck;
+        thisDeck->stop();
+        const double noIntro =
+            getIntroStartSecond(otherDeck) == getIntroEndSecond(otherDeck);
+        otherDeck->setVolume(noIntro?1.0:0.0);
+        setCrossfader(thisDeck->isRight()?-1.0:1.0);
+        otherDeck->isFromDeck = false;
+        otherDeck->play();
+        removeLoadedTrackFromTopOfQueue(*otherDeck);
+        // Load the next track to otherDeck.
+        loadNextTrackFromQueue(*thisDeck);
+        if (thisDeck->isRight()) {
+            m_eState = ADJ_LEFT_SOCIAL_FADING;
+        } else {
+            m_eState = ADJ_RIGHT_SOCIAL_FADING;
+        }
+        emitAutoDJStateChanged(m_eState);
+        return;
+    }
+
     const double fromDeckEndSecond = getEndSecond(pFromDeck);
     const double toDeckEndSecond = getEndSecond(pToDeck);
     // Since the end position is measured in seconds from 0:00 it is also
