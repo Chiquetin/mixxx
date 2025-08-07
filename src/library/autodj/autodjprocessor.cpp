@@ -271,11 +271,7 @@ void AutoDJProcessor::fadeNow() {
         removeLoadedTrackFromTopOfQueue(*otherDeck);
         // Load the next track to otherDeck.
         loadNextTrackFromQueue(*thisDeck);
-        if (thisDeck->isRight()) {
-            m_eState = ADJ_LEFT_SOCIAL_FADING;
-        } else {
-            m_eState = ADJ_RIGHT_SOCIAL_FADING;
-        }
+        m_eState = ADJ_SOCIAL_FADE_IN;
         emitAutoDJStateChanged(m_eState);
         return;
     }
@@ -780,8 +776,7 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
         const double thisPos = thisPlayPosition;
         const double duration = getEndSecond(thisDeck);
         switch (m_eState) {
-        case ADJ_LEFT_SOCIAL_FADING:
-        case ADJ_RIGHT_SOCIAL_FADING: {
+        case ADJ_SOCIAL_FADE_IN: {
                 const double startPos = getIntroStartSecond(thisDeck) / duration;
                 const double endPos = getIntroEndSecond(thisDeck) / duration;
                 if (thisPos < startPos) {
@@ -816,13 +811,8 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                     otherDeck->isFromDeck = false;
                     otherDeck->play();
                     removeLoadedTrackFromTopOfQueue(*otherDeck);
-                    // Load the next track to otherDeck.
                     loadNextTrackFromQueue(*thisDeck);
-                    if (thisDeck->isRight()) {
-                        m_eState = ADJ_LEFT_SOCIAL_FADING;
-                    } else {
-                        m_eState = ADJ_RIGHT_SOCIAL_FADING;
-                    }
+                    m_eState = ADJ_SOCIAL_FADE_IN;
                     emitAutoDJStateChanged(m_eState);
                 }
             } break;

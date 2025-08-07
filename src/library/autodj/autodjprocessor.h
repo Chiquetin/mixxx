@@ -154,8 +154,7 @@ class AutoDJProcessor : public QObject {
         ADJ_IDLE = 0,
         ADJ_LEFT_FADING,
         ADJ_RIGHT_FADING,
-        ADJ_LEFT_SOCIAL_FADING,
-        ADJ_RIGHT_SOCIAL_FADING,
+        ADJ_SOCIAL_FADE_IN,
         ADJ_ENABLE_P1LOADED,
         ADJ_ENABLE_P1PLAYING,
         ADJ_DISABLED
