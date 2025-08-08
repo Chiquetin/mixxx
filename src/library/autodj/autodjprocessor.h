@@ -256,7 +256,6 @@ class AutoDJProcessor : public QObject {
                 play);
     }
     virtual void emitAutoDJStateChanged(AutoDJProcessor::AutoDJState state) {
-        qDebug() << "AutoDJStateChanged(" << state << ")";
         emit autoDJStateChanged(state);
     }
 
