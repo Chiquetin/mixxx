@@ -263,22 +263,23 @@ void AutoDJProcessor::fadeNow() {
     pToDeck->isFromDeck = false;
 
     if(m_transitionMode == TransitionMode::CortinaTransitionMode) {
-        qDebug() << pFromDeck->group << "fadeNow() has been requested";
-        // Stop the deck playing currently and hand over control to the new deck
-        pFromDeck->stop();
-        // Set the state as INTRO_FADE_IN
-        m_eState = pFromDeck->isLeft() ? ADJ_RIGHT_INTRO_FADE_IN : ADJ_LEFT_INTRO_FADE_IN;
-        m_transitionProgress = 0.0;
+        qDebug() << pFromDeck->group << "CortinaMode: fadeNow()";
+        DeckAttributes* const thisDeck = pFromDeck;
+        DeckAttributes* const otherDeck = pToDeck;
+        thisDeck->stop();
+        setCrossfader(thisDeck->isRight() ? -1.0 : 1.0);
+        const double introStart = getIntroStartSecond(otherDeck);
+        const double introEnd = getIntroEndSecond(otherDeck);
+        const bool nextTrackHasIntro = (introStart != introEnd);
+        otherDeck->setChannelFader(nextTrackHasIntro ? 0.0 : 1.0);
+        m_eState = ADJ_SOCIAL_FADE_IN;
         emitAutoDJStateChanged(m_eState);
-
-        if (!pToDeck->isPlaying()) {
-            pToDeck->play();
-        }
-
-        // Now that we have started the other deck playing, remove the track
-        // that was "on deck" from the top of the queue.
+        otherDeck->play();
+        // Now that we have started the other deck playing, remove
+        // the track that was "on deck" from the top of the queue.
         // Note: This is a DB call and takes long.
-        removeLoadedTrackFromTopOfQueue(*pToDeck);
+        removeLoadedTrackFromTopOfQueue(*otherDeck);
+        loadNextTrackFromQueue(*thisDeck);
         return;
     }
 
@@ -819,49 +820,6 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
         }
     }
 
-    // This is specific to CortinaTransitionMode
-    if (m_eState == ADJ_LEFT_INTRO_FADE_IN || m_eState == ADJ_RIGHT_INTRO_FADE_IN) {
-        // ignore updates from the non-fading deck updates during INTRO_FADE_IN
-        if ((m_eState == ADJ_LEFT_INTRO_FADE_IN && thisDeck->isRight()) ||
-                (m_eState == ADJ_RIGHT_INTRO_FADE_IN && thisDeck->isLeft())) {
-            qDebug() << thisDeck->group << "not relevant during fade in";
-            return;
-        }
-
-        if (!otherDeckPlaying && otherDeck->isFromDeck) {
-            // TODO: (TDJ_Nick) check if fadeBeginPos and fadeEndPos are correct when leaving INTRO_FADE_IN state
-            qDebug() << this << otherDeck->group << "loading next track";
-            thisDeck->fadeBeginPos = 1.0;
-            thisDeck->fadeEndPos = 1.0;
-            // toggle isFromDeck status
-            thisDeck->isFromDeck = true;
-            otherDeck->isFromDeck = false;
-            // Load the next track to otherDeck.
-            loadNextTrackFromQueue(*otherDeck);
-            return;
-        }
-
-        const double dIntroStartPos = getIntroStartSecond(thisDeck) / getEndSecond(thisDeck);
-        const double dIntroEndPos = getIntroEndSecond(thisDeck) / getEndSecond(thisDeck);
-
-        if (dIntroStartPos < dIntroEndPos && thisPlayPosition < dIntroEndPos) {
-            // use intro duration of the intro for fade transition
-            const double dIntroProgress = (thisPlayPosition - dIntroStartPos) / (dIntroEndPos - dIntroStartPos);
-            // qDebug() << "IntroProgress" << dIntroProgress;
-            if (dIntroProgress < 1.0 && dIntroProgress > 0.0) {
-                thisDeck->setChannelFader(dIntroProgress);
-            } else if (dIntroProgress < 0.0) {
-                thisDeck->setChannelFader(0.0);
-            }
-        } else {
-            // Jump out of INTRO_FADE_IN mode because intro length is zero or
-            // current position is past the intro end mark
-            m_eState = ADJ_IDLE;
-            emitAutoDJStateChanged(m_eState);
-        }
-        return;
-    }
-
     if (m_eState == ADJ_IDLE) {
         if (!thisDeckPlaying && thisPlayPosition < 1) {
             // this is a cueing seek, recalculate the transition, from the
@@ -885,29 +843,58 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
     }
 
     if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
-        // In CortinaTransitionMode we only have to check if the end of the track has been reached
-        if (thisPlayPosition >= thisDeck->fadeEndPos && thisDeck->isFromDeck && !otherDeck->loading) {
-            qDebug() << thisDeck->group << "has reached the end";
-            // Set the state as INTRO_FADE_IN
-            m_eState = thisDeck->isLeft() ? ADJ_RIGHT_INTRO_FADE_IN : ADJ_LEFT_INTRO_FADE_IN;
-            // Move the cross fader to the destination
-            setCrossfader(thisDeck->isLeft() ? 1.0 : -1.0);
-            // and set the transition to completed
-            m_transitionProgress = 1.0;
-            emitAutoDJStateChanged(m_eState);
-
-            if (!otherDeckPlaying) {
-                otherDeck->play();
-            }
-
-            // Now that we have started the other deck playing, remove the track
-            // that was "on deck" from the top of the queue.
-            // Note: This is a DB call and takes long.
-            removeLoadedTrackFromTopOfQueue(*otherDeck);
-            return;
-        } else {
+        if (!thisDeckPlaying) {
+            qDebug() << thisDeck->group << "CortinaMode: play pos ignored";
             return;
         }
+        const double duration = getEndSecond(thisDeck);
+        const double introStart = getIntroStartSecond(thisDeck) / duration;
+        const double introEnd = getIntroEndSecond(thisDeck) / duration;
+        const double outroStart = getOutroStartSecond(thisDeck) / duration;
+        const double outroEnd = getOutroEndSecond(thisDeck) / duration;
+        switch (m_eState) {
+        case ADJ_SOCIAL_FADE_IN: {
+            if (thisPlayPosition < introStart) {
+                qDebug() << "CortinaMode: waiting for fade-in";
+            } else if (thisPlayPosition < introEnd) {
+                qDebug() << "CortinaMode: fading in";
+                const double progress = (thisPlayPosition - introStart) /
+                        (introEnd - introStart);
+                thisDeck->setChannelFader(progress);
+            } else {
+                qDebug() << "CortinaMode: fade-in completed";
+                thisDeck->setChannelFader(1.0);
+                m_eState = ADJ_IDLE;
+            }
+        } break;
+        case ADJ_IDLE: {
+            if (thisPlayPosition < outroStart) {
+                // qDebug() << "CortinaMode: keep on playing";
+            } else if (thisPlayPosition < outroEnd) {
+                qDebug() << "CortinaMode: fading out";
+                const double progress = (thisPlayPosition - outroStart) /
+                        (outroEnd - outroStart);
+                thisDeck->setChannelFader(1.0 - progress);
+            } else if (thisPlayPosition >= std::min(outroEnd, 1.0)) {
+                qDebug() << thisDeck->group << "CortinaMode: transition now";
+                thisDeck->stop();
+                setCrossfader(thisDeck->isRight() ? -1.0 : 1.0);
+                const double introStart = getIntroStartSecond(otherDeck);
+                const double introEnd = getIntroEndSecond(otherDeck);
+                const bool nextTrackHasIntro = (introStart != introEnd);
+                otherDeck->setChannelFader(nextTrackHasIntro ? 0.0 : 1.0);
+                m_eState = ADJ_SOCIAL_FADE_IN;
+                emitAutoDJStateChanged(m_eState);
+                otherDeck->play();
+                // Now that we have started the other deck playing, remove
+                // the track that was "on deck" from the top of the queue.
+                // Note: This is a DB call and takes long.
+                removeLoadedTrackFromTopOfQueue(*otherDeck);
+                loadNextTrackFromQueue(*thisDeck);
+            }
+        } break;
+        }
+        return;
     }
 
     // If we are past this deck's posThreshold then:
