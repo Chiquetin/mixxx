@@ -24,7 +24,7 @@ constexpr double kMinimumTrackDurationSec = 0.2;
 constexpr double kFadeInDurationDefault = 3.0;  // duration in seconds
 constexpr double kFadeOutDurationDefault = 5.0; // duration in seconds
 
-constexpr bool sDebug = true;
+constexpr bool sDebug = false;
 } // anonymous namespace
 
 DeckAttributes::DeckAttributes(int index,
@@ -346,9 +346,6 @@ void AutoDJProcessor::fadeNow() {
             }
             fadeTime = math_min(spinboxTime, timeUntilOutroEnd);
         }
-    } else if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
-        // TODO: calculate fadeTime for CortinaTransitionMode
-        fadeTime = m_transitionTime;
     } else {
         fadeTime = spinboxTime;
     }
@@ -593,7 +590,6 @@ AutoDJProcessor::AutoDJError AutoDJProcessor::toggleAutoDJ(bool enable) {
             // loaded track from the queue and wait for the next call to
             // playerPositionChanged for deck1 after the track is loaded.
             m_eState = ADJ_ENABLE_P1LOADED;
-            qDebug() << "AutoDJProcessor:" << "m_eState(ADJ_ENABLE_P1LOADED)";
 
             // Move crossfader to the left.
             setCrossfader(-1.0);
@@ -606,7 +602,6 @@ AutoDJProcessor::AutoDJError AutoDJProcessor::toggleAutoDJ(bool enable) {
             // One of the two decks is playing. Switch into IDLE mode and wait
             // until the playing deck crosses posThreshold to start fading.
             m_eState = ADJ_IDLE;
-            qDebug() << "AutoDJProcessor:" << "m_eState(ADJ_IDLE)";
             if (leftDeckPlaying) {
                 // Load track into the right deck.
                 emitLoadTrackToPlayer(nextTrack, pRightDeck->group, false);
@@ -714,7 +709,7 @@ void AutoDJProcessor::crossfaderChanged(double value) {
 
 void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                                             double thisPlayPosition) {
-    // qDebug() << pAttributes->group << "playerPositionChanged(" << thisPlayPosition << ")";
+    // qDebug() << "player" << pAttributes->group << "PositionChanged(" << value << ")";
     if (m_eState == ADJ_DISABLED) {
         // nothing to do
         return;
@@ -760,7 +755,6 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             // sure our thresholds are configured (by calling calculateFadeThresholds
             // for the playing deck).
             m_eState = ADJ_IDLE;
-            qDebug() << "AutoDJProcessor:" << "m_eState(ADJ_IDLE)";
 
             if (!rightDeckPlaying) {
                 // Only left deck playing!
@@ -832,7 +826,7 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
             // Don't adjust transition when reaching the end. In this case it is
             // always stopped.
             if constexpr (sDebug) {
-                qDebug() << this << thisDeck->group << "playerPositionChanged"
+                qDebug() << this << "playerPositionChanged"
                          << "cueing seek";
             }
             calculateTransition(otherDeck, thisDeck, false);
@@ -1349,9 +1343,6 @@ double AutoDJProcessor::framePositionToSeconds(
 void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
         DeckAttributes* pToDeck,
         bool seekToStartPoint) {
-    qDebug() << this << "calculateTransition"
-             << pFromDeck->group << "->" << pToDeck->group
-             << "(seekToStartPoint:" << seekToStartPoint << ")";
 
     VERIFY_OR_DEBUG_ASSERT(pFromDeck && pToDeck) {
         return;
@@ -1433,8 +1424,6 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
     const double introStart = getIntroStartSecond(pToDeck);
     const double introEnd = getIntroEndSecond(pToDeck);
     if (seekToStartPoint || toDeckPositionSeconds >= pToDeck->fadeBeginPos) {
-        // suspect that this causes reset in cortina mode
-        qDebug() << this << pToDeck->group << "re-cueing:" << introStart;
         // toDeckPosition >= pToDeck->fadeBeginPos happens when the
         // user has seeked or played the to track behind fadeBeginPos of
         // the fade after the next.
@@ -1621,39 +1610,17 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
 
     if constexpr (sDebug) {
         qDebug() << this << "calculateTransition" << pFromDeck->group
-                 << "fadeBeginPos:" << pFromDeck->fadeBeginPos
-                 << "fadeEndPos:" << pFromDeck->fadeEndPos
-                 << "isFromDeck:" << pFromDeck->isFromDeck;
-        qDebug() << this << "calculateTransition" << pToDeck->group
-                 << "startPos:" << pToDeck->startPos
-                 << "fadeBeginPos:" << pToDeck->fadeBeginPos
-                 << "fadeEndPos:" << pToDeck->fadeEndPos
-                 << "isFromDeck:" << pToDeck->isFromDeck;
+                 << pFromDeck->fadeBeginPos << pFromDeck->fadeEndPos
+                 << pToDeck->startPos;
     }
 }
 
-/*
- * useFixedFadeTime
- * applies the logic of fixed FadeTime to the transition markers on each deck
- *
- * Input:
- *   fromDeckSecond:
- *   fadeEndSecond:
- *   toDeckStartSecond:
- * Uses:
- *   m_transitionTime:
- */
 void AutoDJProcessor::useFixedFadeTime(
         DeckAttributes* pFromDeck,
         DeckAttributes* pToDeck,
         double fromDeckSecond,
         double fadeEndSecond,
         double toDeckStartSecond) {
-    qDebug() << this << "useFixedFadeTime"
-             << pFromDeck->group << "->" << pToDeck->group
-             << "fromDeckSecond:" << fromDeckSecond
-             << "fadeEndSecond:" << fadeEndSecond
-             << "toDeckStartSecond:" << toDeckStartSecond;
     if (m_transitionTime > 0.0) {
         // Guard against the next track being too short. This transition must finish
         // before the next transition starts.
