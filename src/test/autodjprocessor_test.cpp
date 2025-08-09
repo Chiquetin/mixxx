@@ -55,11 +55,13 @@ class FakeDeck : public BaseTrackPlayer {
               introEndPos(ConfigKey(group, "intro_end_position")),
               outroStartPos(ConfigKey(group, "outro_start_position")),
               outroEndPos(ConfigKey(group, "outro_end_position")),
+              volume(ConfigKey(group, "volume")),
               orientation(ConfigKey(group, "orientation")) {
         play.setButtonMode(mixxx::control::ButtonMode::Toggle);
         repeat.setButtonMode(mixxx::control::ButtonMode::Toggle);
         outroStartPos.set(Cue::kNoPosition);
         outroEndPos.set(Cue::kNoPosition);
+        volume.set(1.0);
         orientation.set(orient);
     }
 
@@ -125,6 +127,7 @@ class FakeDeck : public BaseTrackPlayer {
     ControlObject introEndPos;
     ControlObject outroStartPos;
     ControlObject outroEndPos;
+    ControlObject volume;
     ControlObject orientation;
 };
 
@@ -343,6 +346,7 @@ TEST_F(AutoDJProcessorTest, FullIntroOutro_LongerIntro) {
 
 TEST_F(AutoDJProcessorTest, FullIntroOutro_LongerOutro) {
     pProcessor->setTransitionMode(AutoDJProcessor::TransitionMode::FullIntroOutro);
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_LEFT_FADING));
 
     TrackId testId = addTrackToCollection(kTrackLocationTest);
     ASSERT_TRUE(testId.isValid());
@@ -368,6 +372,7 @@ TEST_F(AutoDJProcessorTest, FullIntroOutro_LongerOutro) {
     EXPECT_EQ(AutoDJProcessor::ADJ_DISABLED, pProcessor->getState());
     EXPECT_CALL(*pProcessor, emitLoadTrackToPlayer(_, QString("[Channel2]"), false));
 
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_IDLE));
     // Enable AutoDJ, we immediately transition into IDLE and request a track
     // load on deck2.
     AutoDJProcessor::AutoDJError err = pProcessor->toggleAutoDJ(true);
@@ -431,6 +436,7 @@ TEST_F(AutoDJProcessorTest, FullIntroOutro_LongerOutro) {
 
 TEST_F(AutoDJProcessorTest, FadeAtOutroStart_LongerIntro) {
     pProcessor->setTransitionMode(AutoDJProcessor::TransitionMode::FadeAtOutroStart);
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(_));
 
     TrackId testId = addTrackToCollection(kTrackLocationTest);
     ASSERT_TRUE(testId.isValid());
@@ -456,6 +462,7 @@ TEST_F(AutoDJProcessorTest, FadeAtOutroStart_LongerIntro) {
     EXPECT_EQ(AutoDJProcessor::ADJ_DISABLED, pProcessor->getState());
     EXPECT_CALL(*pProcessor, emitLoadTrackToPlayer(_, QString("[Channel2]"), false));
 
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_IDLE));
     // Enable AutoDJ, we immediately transition into IDLE and request a track
     // load on deck2.
     AutoDJProcessor::AutoDJError err = pProcessor->toggleAutoDJ(true);
@@ -515,6 +522,7 @@ TEST_F(AutoDJProcessorTest, FadeAtOutroStart_LongerIntro) {
 
 TEST_F(AutoDJProcessorTest, FadeAtOutroStart_LongerOutro) {
     pProcessor->setTransitionMode(AutoDJProcessor::TransitionMode::FadeAtOutroStart);
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_LEFT_FADING));
 
     TrackId testId = addTrackToCollection(kTrackLocationTest);
     ASSERT_TRUE(testId.isValid());
@@ -540,6 +548,7 @@ TEST_F(AutoDJProcessorTest, FadeAtOutroStart_LongerOutro) {
     EXPECT_EQ(AutoDJProcessor::ADJ_DISABLED, pProcessor->getState());
     EXPECT_CALL(*pProcessor, emitLoadTrackToPlayer(_, QString("[Channel2]"), false));
 
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_IDLE));
     // Enable AutoDJ, we immediately transition into IDLE and request a track
     // load on deck2.
     AutoDJProcessor::AutoDJError err = pProcessor->toggleAutoDJ(true);
@@ -620,6 +629,7 @@ TEST_F(AutoDJProcessorTest, TransitionTimeLoadedFromConfig) {
 }
 
 TEST_F(AutoDJProcessorTest, DecksPlayingWarning) {
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_DISABLED));
     deck1.play.set(1);
     deck2.play.set(1);
     AutoDJProcessor::AutoDJError err = pProcessor->toggleAutoDJ(true);
@@ -627,10 +637,12 @@ TEST_F(AutoDJProcessorTest, DecksPlayingWarning) {
 }
 
 TEST_F(AutoDJProcessorTest, Decks34PlayingWarning) {
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_DISABLED));
     deck3.play.set(1);
     AutoDJProcessor::AutoDJError err = pProcessor->toggleAutoDJ(true);
     EXPECT_EQ(AutoDJProcessor::ADJ_UNUSED_DECK_PLAYING, err);
 
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_DISABLED));
     deck3.play.set(0);
     deck4.play.set(1);
     err = pProcessor->toggleAutoDJ(true);
@@ -638,6 +650,7 @@ TEST_F(AutoDJProcessorTest, Decks34PlayingWarning) {
 }
 
 TEST_F(AutoDJProcessorTest, QueueEmpty) {
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_DISABLED));
     AutoDJProcessor::AutoDJError err = pProcessor->toggleAutoDJ(true);
     EXPECT_EQ(AutoDJProcessor::ADJ_QUEUE_EMPTY, err);
 }
@@ -1090,16 +1103,20 @@ TEST_F(AutoDJProcessorTest, EnabledSuccess_PlayingDeck2_TrackLoadFailed) {
 }
 
 TEST_F(AutoDJProcessorTest, EnabledDisabledSuccess) {
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(_));
     TrackId testId = addTrackToCollection(kTrackLocationTest);
     ASSERT_TRUE(testId.isValid());
 
     PlaylistTableModel* pAutoDJTableModel = pProcessor->getTableModel();
     pAutoDJTableModel->appendTrack(testId);
 
+    EXPECT_CALL(*pProcessor, emitLoadTrackToPlayer(_, QString("[Channel1]"), true));
     AutoDJProcessor::AutoDJError err = pProcessor->toggleAutoDJ(true);
+
     EXPECT_EQ(AutoDJProcessor::ADJ_OK, err);
     EXPECT_EQ(AutoDJProcessor::ADJ_ENABLE_P1LOADED, pProcessor->getState());
 
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_DISABLED));
     err = pProcessor->toggleAutoDJ(false);
     EXPECT_EQ(AutoDJProcessor::ADJ_OK, err);
     EXPECT_EQ(AutoDJProcessor::ADJ_DISABLED, pProcessor->getState());
@@ -1639,6 +1656,7 @@ TEST_F(AutoDJProcessorTest, FadeToDeck2_Long_Transition) {
 
 TEST_F(AutoDJProcessorTest, FadeToDeck2_Pause_Transition) {
     pProcessor->setTransitionMode(AutoDJProcessor::TransitionMode::FixedFullTrack);
+    EXPECT_CALL(*pProcessor, emitAutoDJStateChanged(AutoDJProcessor::ADJ_IDLE));
 
     TrackId testId = addTrackToCollection(kTrackLocationTest);
     ASSERT_TRUE(testId.isValid());
