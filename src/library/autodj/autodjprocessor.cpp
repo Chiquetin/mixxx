@@ -1386,6 +1386,19 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
         return;
     }
 
+    if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
+        const double toDuration = toDeckEndPosition;
+        const double toStart = getIntroStartSecond(pToDeck);
+        if (seekToStartPoint) {
+            qDebug() << pToDeck->group << "CortinaMode: seek to start";
+            // pToDeck->startPos = (toStart + m_transitionTime) / toDuration;
+            pToDeck->startPos = toStart / toDuration;
+        } else {
+            qDebug() << pToDeck->group << "CortinaMode: skip seek start";
+        }
+        return;
+    }
+
     // Within this function, the outro refers to the outro of the currently
     // playing track and the intro refers to the intro of the next track.
 
