@@ -55,6 +55,7 @@ class FakeDeck : public BaseTrackPlayer {
               introEndPos(ConfigKey(group, "intro_end_position")),
               outroStartPos(ConfigKey(group, "outro_start_position")),
               outroEndPos(ConfigKey(group, "outro_end_position")),
+              volumeFader(ConfigKey(group, "volume")),
               orientation(ConfigKey(group, "orientation")) {
         play.setButtonMode(ControlPushButton::TOGGLE);
         repeat.setButtonMode(ControlPushButton::TOGGLE);
@@ -121,6 +122,7 @@ class FakeDeck : public BaseTrackPlayer {
     ControlObject introEndPos;
     ControlObject outroStartPos;
     ControlObject outroEndPos;
+    ControlObject volumeFader;
     ControlObject orientation;
 };
 
