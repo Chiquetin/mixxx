@@ -1332,6 +1332,17 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
         return;
     }
 
+    if (m_transitionMode == TransitionMode::CortinaMode) {
+        if (!pToDeck->isPlaying()) {
+            const double toDeckDuration = getEndSecond(pToDeck);
+            const double introStart = getIntroStartSecond(pToDeck);
+            const double startPos = (introStart - fabs(m_transitionTime)) / toDeckDuration; 
+            pToDeck->setPlayPosition(startPos);
+            pToDeck->startPos = startPos;
+        }
+        return;
+    }
+
     // We require ADJ_IDLE to prevent changing the thresholds in the middle of a
     // fade.
     VERIFY_OR_DEBUG_ASSERT(m_eState == ADJ_IDLE) {
@@ -1688,6 +1699,10 @@ void AutoDJProcessor::playerTrackLoaded(DeckAttributes* pDeck, TrackPointer pTra
         if (pDeck == getLeftDeck()) {
             // restore the play state lost during loading
             pDeck->play();
+        }
+    } else {
+        if (m_transitionMode==TransitionMode::CortinaMode) {
+            calculateTransition(pDeck, pDeck, true);
         }
     }
 }
