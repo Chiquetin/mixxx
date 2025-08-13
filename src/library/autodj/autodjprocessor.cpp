@@ -266,8 +266,9 @@ void AutoDJProcessor::fadeNow() {
             getIntroStartSecond(otherDeck) == getIntroEndSecond(otherDeck);
         otherDeck->setVolume(noIntro?1.0:0.0);
         setCrossfader(thisDeck->isRight()?-1.0:1.0);
-        otherDeck->isFromDeck = false;
         otherDeck->play();
+        thisDeck->isFromDeck = false;
+        otherDeck->isFromDeck = true;
         removeLoadedTrackFromTopOfQueue(*otherDeck);
         // Load the next track to otherDeck.
         loadNextTrackFromQueue(*thisDeck);
@@ -674,6 +675,8 @@ void AutoDJProcessor::crossfaderChanged(double value) {
                         pToDeck->setPlayPosition(pToDeck->startPos);
                     }
                     pToDeck->play();
+                    pToDeck->isFromDeck = true;
+                    pFromDeck->isFromDeck = false;
                 } else {
                     // Track in toDeck was ejected manually, stop.
                     toggleAutoDJ(false);
@@ -808,7 +811,8 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                         getIntroStartSecond(otherDeck) == getIntroEndSecond(otherDeck);
                     otherDeck->setVolume(noIntro?1.0:0.0);
                     setCrossfader(thisDeck->isRight()?-1.0:1.0);
-                    otherDeck->isFromDeck = false;
+                    otherDeck->isFromDeck = true;
+                    thisDeck->isFromDeck = false;
                     otherDeck->play();
                     removeLoadedTrackFromTopOfQueue(*otherDeck);
                     loadNextTrackFromQueue(*thisDeck);
