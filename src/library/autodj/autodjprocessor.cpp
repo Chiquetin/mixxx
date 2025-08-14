@@ -887,6 +887,9 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                 loadNextTrackFromQueue(*thisDeck);
             }
         } break;
+        default: {
+            // nothing to do
+        }
         }
         return;
     }
