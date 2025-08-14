@@ -274,6 +274,8 @@ void AutoDJProcessor::fadeNow() {
         otherDeck->setChannelFader(nextTrackHasIntro ? 0.0 : 1.0);
         m_eState = ADJ_SOCIAL_FADE_IN;
         emitAutoDJStateChanged(m_eState);
+        thisDeck->isFromDeck = false;
+        otherDeck->isFromDeck = true;
         otherDeck->play();
         // Now that we have started the other deck playing, remove
         // the track that was "on deck" from the top of the queue.
@@ -704,6 +706,19 @@ void AutoDJProcessor::crossfaderChanged(double value) {
             removeLoadedTrackFromTopOfQueue(*pToDeck);
             loadNextTrackFromQueue(*pFromDeck);
         }
+    } else if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
+        DeckAttributes* pFromDeck = getFromDeck();
+        VERIFY_OR_DEBUG_ASSERT(pFromDeck) {
+            return;
+        }
+        DeckAttributes* pToDeck = getOtherDeck(pFromDeck);
+        if (!pToDeck) {
+            return;
+        }
+        pFromDeck->stop();
+        pFromDeck->isFromDeck = false;
+        pToDeck->isFromDeck = true;
+        pToDeck->play();
     }
 }
 
@@ -879,6 +894,8 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                 otherDeck->setChannelFader(nextTrackHasIntro ? 0.0 : 1.0);
                 m_eState = ADJ_SOCIAL_FADE_IN;
                 emitAutoDJStateChanged(m_eState);
+                thisDeck->isFromDeck = false;
+                otherDeck->isFromDeck = true;
                 otherDeck->play();
                 // Now that we have started the other deck playing, remove
                 // the track that was "on deck" from the top of the queue.
@@ -1396,6 +1413,10 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
             qDebug() << pToDeck->group << "CortinaMode: seek to start";
             pToDeck->startPos = (toStart - fabs(m_transitionTime)) / toDuration;
             pToDeck->setPlayPosition(pToDeck->startPos);
+            if (pFromDeck != pToDeck) {
+                pFromDeck->isFromDeck = true;
+                pToDeck->isFromDeck = false;
+            }
         } else {
             qDebug() << pToDeck->group << "CortinaMode: skip seek start";
         }
@@ -1734,6 +1755,8 @@ void AutoDJProcessor::playerTrackLoaded(DeckAttributes* pDeck, TrackPointer pTra
             // restore the play state lost during loading
             pDeck->play();
         }
+    } else if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
+        calculateTransition(pDeck, pDeck, true);
     }
 }
 
