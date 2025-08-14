@@ -1394,8 +1394,8 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
         const double toStart = getIntroStartSecond(pToDeck);
         if (seekToStartPoint) {
             qDebug() << pToDeck->group << "CortinaMode: seek to start";
-            // pToDeck->startPos = (toStart + m_transitionTime) / toDuration;
-            pToDeck->startPos = toStart / toDuration;
+            pToDeck->startPos = (toStart - fabs(m_transitionTime)) / toDuration;
+            pToDeck->setPlayPosition(pToDeck->startPos);
         } else {
             qDebug() << pToDeck->group << "CortinaMode: skip seek start";
         }
