@@ -20,6 +20,10 @@ constexpr double kKeepPosition = -1.0;
 // A track needs to be longer than two callbacks to not stop AutoDJ
 constexpr double kMinimumTrackDurationSec = 0.2;
 
+// new parameter for social dance mode
+constexpr double kFadeInDurationDefault = 3.0;  // duration in seconds
+constexpr double kFadeOutDurationDefault = 5.0; // duration in seconds
+
 constexpr bool sDebug = false;
 } // anonymous namespace
 
@@ -662,26 +666,41 @@ void AutoDJProcessor::controlAddRandomTrack(double value) {
 }
 
 void AutoDJProcessor::crossfaderChanged(double value) {
-    if (m_eState == ADJ_IDLE) {
-        // The user is changing the crossfader manually. If the user has
-        // moved it all the way to the other side, make the deck faded away
-        // from the new "to deck" by loading the next track into it.
-        DeckAttributes* pFromDeck = getFromDeck();
-        VERIFY_OR_DEBUG_ASSERT(pFromDeck) {
-            // we have always a from deck in case of state IDLE
-            return;
-        }
+    // The user is changing the crossfader manually. If the user has
+    // moved it all the way to the other side, make the deck faded away
+    // from the new "to deck" by loading the next track into it.
+    DeckAttributes* pFromDeck = getFromDeck();
+    VERIFY_OR_DEBUG_ASSERT(pFromDeck) {
+        // we have always a from deck in case of state IDLE
+        return;
+    }
 
-        DeckAttributes* pToDeck = getOtherDeck(pFromDeck);
-        if (!pToDeck) {
-            // we have always a from deck in case of state IDLE
-            // if the user has not changed the deck orientation
-            return;
-        }
+    DeckAttributes* pToDeck = getOtherDeck(pFromDeck);
+    if (!pToDeck) {
+        // we have always a from deck in case of state IDLE
+        // if the user has not changed the deck orientation
+        return;
+    }
 
-        double crossfaderPosition = value * (m_pCOCrossfaderReverse->toBool() ? -1 : 1);
-        if ((crossfaderPosition == 1.0 && pFromDeck->isLeft()) ||       // crossfader right
-                (crossfaderPosition == -1.0 && pFromDeck->isRight())) { // crossfader left
+    double const crossfaderPosition = value * (m_pCOCrossfaderReverse->toBool() ? -1 : 1);
+    if ((crossfaderPosition == 1.0 && pFromDeck->isLeft()) ||       // crossfader right
+            (crossfaderPosition == -1.0 && pFromDeck->isRight())) { // crossfader left
+        if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
+            DeckAttributes* const thisDeck = pFromDeck;
+            DeckAttributes* const otherDeck = pToDeck;
+            qDebug() << thisDeck->group << "CortinaMode: cross fade now to"
+                     << otherDeck->group;
+            thisDeck->stop();
+            const double introStart = getIntroStartSecond(otherDeck);
+            const double introEnd = getIntroEndSecond(otherDeck);
+            const bool nextTrackHasIntro = (introStart != introEnd);
+            otherDeck->setChannelFader(nextTrackHasIntro ? 0.0 : 1.0);
+            m_eState = ADJ_SOCIAL_FADE_IN;
+            emitAutoDJStateChanged(m_eState);
+            thisDeck->isFromDeck = false;
+            otherDeck->isFromDeck = true;
+            otherDeck->play();
+        } else if (m_eState == ADJ_IDLE) {
             if (!pToDeck->isPlaying()) {
                 if (getEndSecond(pToDeck) >= kMinimumTrackDurationSec) {
                     // Re-cue the track if the user has seeked it to the very end
@@ -696,25 +715,11 @@ void AutoDJProcessor::crossfaderChanged(double value) {
                 }
             }
             pFromDeck->stop();
-
-            // Now that we have started the other deck playing, remove the track
-            // that was "on deck" from the top of the queue.
-            removeLoadedTrackFromTopOfQueue(*pToDeck);
-            loadNextTrackFromQueue(*pFromDeck);
         }
-    } else if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
-        DeckAttributes* pFromDeck = getFromDeck();
-        VERIFY_OR_DEBUG_ASSERT(pFromDeck) {
-            return;
-        }
-        DeckAttributes* pToDeck = getOtherDeck(pFromDeck);
-        if (!pToDeck) {
-            return;
-        }
-        pFromDeck->stop();
-        pFromDeck->isFromDeck = false;
-        pToDeck->isFromDeck = true;
-        pToDeck->play();
+        // Now that we have started the other deck playing, remove the track
+        // that was "on deck" from the top of the queue.
+        removeLoadedTrackFromTopOfQueue(*pToDeck);
+        loadNextTrackFromQueue(*pFromDeck);
     }
 }
 
@@ -1361,49 +1366,18 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
         bool seekToStartPoint) {
 
     VERIFY_OR_DEBUG_ASSERT(pFromDeck && pToDeck) {
+        qDebug() << "CortinaMode: deck null assertion";
         return;
     }
     if (pFromDeck->loading || pToDeck->loading) {
+        qDebug() << "CortinaMode: deck loading ignore";
         // don't use halve new halve old data during
         // changing of tracks
         return;
     }
 
-    // We require ADJ_IDLE to prevent changing the thresholds in the middle of a
-    // fade.
-    VERIFY_OR_DEBUG_ASSERT(m_eState == ADJ_IDLE) {
-        return;
-    }
-
-    const double fromDeckEndPosition = getEndSecond(pFromDeck);
-    const double toDeckEndPosition = getEndSecond(pToDeck);
-    // Since the end position is measured in seconds from 0:00 it is also
-    // the track duration. Use this alias for better readability.
-    const double fromDeckDuration = fromDeckEndPosition;
-    const double toDeckDuration = toDeckEndPosition;
-
-    VERIFY_OR_DEBUG_ASSERT(fromDeckDuration >= kMinimumTrackDurationSec) {
-        // Track has no duration or too short. This should not happen, because short
-        // tracks are skipped after load. Play ToDeck immediately.
-        pFromDeck->fadeBeginPos = 0;
-        pFromDeck->fadeEndPos = 0;
-        pToDeck->startPos = kKeepPosition;
-        return;
-    }
-    if (toDeckDuration == 0) {
-        // This is a seek call to zero after ejecting the track
-        // this signal is received before the track pointer becomes null
-        return;
-    }
-    VERIFY_OR_DEBUG_ASSERT(toDeckDuration >= kMinimumTrackDurationSec) {
-        // Track has no duration or too short. This should not happen, because short
-        // tracks are skipped after load.
-        loadNextTrackFromQueue(*pToDeck, false);
-        return;
-    }
-
     if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
-        const double toDuration = toDeckEndPosition;
+        const double toDuration = getEndSecond(pToDeck);
         const double toStart = getIntroStartSecond(pToDeck);
         if (seekToStartPoint) {
             qDebug() << pToDeck->group << "CortinaMode: seek to start";
@@ -1416,6 +1390,43 @@ void AutoDJProcessor::calculateTransition(DeckAttributes* pFromDeck,
         } else {
             qDebug() << pToDeck->group << "CortinaMode: skip seek start";
         }
+        return;
+    }
+
+    // We require ADJ_IDLE to prevent changing the thresholds in the middle of a
+    // fade.
+    VERIFY_OR_DEBUG_ASSERT(m_eState == ADJ_IDLE) {
+        qDebug() << "CortinaMode: state idle assertion";
+        return;
+    }
+
+    const double fromDeckEndPosition = getEndSecond(pFromDeck);
+    const double toDeckEndPosition = getEndSecond(pToDeck);
+    // Since the end position is measured in seconds from 0:00 it is also
+    // the track duration. Use this alias for better readability.
+    const double fromDeckDuration = fromDeckEndPosition;
+    const double toDeckDuration = toDeckEndPosition;
+
+    VERIFY_OR_DEBUG_ASSERT(fromDeckDuration >= kMinimumTrackDurationSec) {
+        qDebug() << "CortinaMode: duration assertion";
+        // Track has no duration or too short. This should not happen, because short
+        // tracks are skipped after load. Play ToDeck immediately.
+        pFromDeck->fadeBeginPos = 0;
+        pFromDeck->fadeEndPos = 0;
+        pToDeck->startPos = kKeepPosition;
+        return;
+    }
+    if (toDeckDuration == 0) {
+        qDebug() << "CortinaMode: track has zero length";
+        // This is a seek call to zero after ejecting the track
+        // this signal is received before the track pointer becomes null
+        return;
+    }
+    VERIFY_OR_DEBUG_ASSERT(toDeckDuration >= kMinimumTrackDurationSec) {
+        qDebug() << "CortinaMode: track too short load next track";
+        // Track has no duration or too short. This should not happen, because short
+        // tracks are skipped after load.
+        loadNextTrackFromQueue(*pToDeck, false);
         return;
     }
 
@@ -1716,6 +1727,9 @@ void AutoDJProcessor::playerTrackLoaded(DeckAttributes* pDeck, TrackPointer pTra
         // Load the next track. If we are the first AutoDJ track
         // (ADJ_ENABLE_P1LOADED state) then play the track.
         loadNextTrackFromQueue(*pDeck, m_eState == ADJ_ENABLE_P1LOADED);
+    } else if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
+        qDebug() << pDeck->group << "CortinaMode: playerTrackLoaded call recalc";
+        calculateTransition(getOtherDeck(pDeck), pDeck, true);
     } else if (m_eState == ADJ_IDLE) {
         // this deck has just changed the track so it becomes the toDeck
         DeckAttributes* fromDeck = getOtherDeck(pDeck);
@@ -1751,8 +1765,6 @@ void AutoDJProcessor::playerTrackLoaded(DeckAttributes* pDeck, TrackPointer pTra
             // restore the play state lost during loading
             pDeck->play();
         }
-    } else if (m_transitionMode == TransitionMode::CortinaTransitionMode) {
-        calculateTransition(pDeck, pDeck, true);
     }
 }
 
