@@ -20,10 +20,6 @@ constexpr double kKeepPosition = -1.0;
 // A track needs to be longer than two callbacks to not stop AutoDJ
 constexpr double kMinimumTrackDurationSec = 0.2;
 
-// new parameter for social dance mode
-constexpr double kFadeInDurationDefault = 3.0;  // duration in seconds
-constexpr double kFadeOutDurationDefault = 5.0; // duration in seconds
-
 constexpr bool sDebug = false;
 } // anonymous namespace
 
