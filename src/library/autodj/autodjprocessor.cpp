@@ -262,7 +262,7 @@ void AutoDJProcessor::fadeNow() {
         DeckAttributes* const thisDeck = pFromDeck;
         DeckAttributes* const otherDeck = pToDeck;
         thisDeck->stop();
-        const double noIntro =
+        const bool noIntro =
             getIntroStartSecond(otherDeck) == getIntroEndSecond(otherDeck);
         otherDeck->setVolume(noIntro?1.0:0.0);
         setCrossfader(thisDeck->isRight()?-1.0:1.0);
@@ -807,7 +807,7 @@ void AutoDJProcessor::playerPositionChanged(DeckAttributes* pAttributes,
                 } else {
                     qDebug() << "CortinaMode: Transition now";
                     thisDeck->stop();
-                    const double noIntro =
+                    const bool noIntro =
                         getIntroStartSecond(otherDeck) == getIntroEndSecond(otherDeck);
                     otherDeck->setVolume(noIntro?1.0:0.0);
                     setCrossfader(thisDeck->isRight()?-1.0:1.0);
